@@ -15,8 +15,8 @@ async function getJSON(url, opts = {}) {
   } finally { clearTimeout(t); }
 }
 
-async function yahoo() {
-  const j = await getJSON('https://query1.finance.yahoo.com/v8/finance/chart/RUB=X?interval=15m&range=1d');
+async function yahoo(host = 'query1') {
+  const j = await getJSON(`https://${host}.finance.yahoo.com/v8/finance/chart/RUB=X?interval=15m&range=1d`);
   const res = j?.chart?.result?.[0]; const m = res?.meta;
   const price = num(m?.regularMarketPrice);
   if (!sane(price)) throw new Error('yahoo: bad price');
@@ -28,6 +28,13 @@ async function yahoo() {
     usdHigh: num(m.regularMarketDayHigh) || (series.length ? Math.max(...series) : null),
     usdSrc: 'рынок'
   };
+}
+
+async function erApi() {
+  const j = await getJSON('https://open.er-api.com/v6/latest/USD');
+  const p = num(j?.rates?.RUB);
+  if (!sane(p)) throw new Error('er-api: bad');
+  return { usd: p, usdPrev: null, usdLow: null, usdHigh: null, usdSrc: 'рынок' };
 }
 
 async function cbr() {
@@ -59,7 +66,7 @@ async function bybitP2P() {
 const first = async (...fns) => { for (const f of fns) { try { return await f(); } catch (e) { console.log(String(e)); } } return null; };
 
 const prev = existsSync('rates.json') ? JSON.parse(readFileSync('rates.json', 'utf8')) : {};
-const [usd, c, usdt] = await Promise.all([first(yahoo), first(cbr), first(rapira, bybitP2P)]);
+const [usd, c, usdt] = await Promise.all([first(() => yahoo('query1'), () => yahoo('query2'), erApi), first(cbr), first(rapira, bybitP2P)]);
 const out = { ...prev, ...(c || {}), ...(usd || {}), ...(usdt || {}) };
 if (!usd && c) Object.assign(out, { usd: c.cbr, usdPrev: c.cbrPrev, usdLow: null, usdHigh: null, usdSrc: 'ЦБ' });
 if (!sane(out.usd) || !sane(out.usdt)) { console.log('no usable data, keeping previous file'); process.exit(0); }
