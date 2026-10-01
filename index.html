@@ -166,29 +166,21 @@ async function getJSON(url, opts){
   finally{ clearTimeout(t); }
 }
 
-async function fetchUSDT(){
-  try{
-    const j = await getJSON('https://api.rapira.net/open/market/rates');
-    const it = (j.data||[]).find(x => String(x.symbol).toUpperCase()==='USDT/RUB');
-    const p = it && +it.close;
-    if(sane(p)) return { usdt:p, usdtPrev:+it.lastDayClose || null, usdtSrc:'Rapira' };
-  }catch(e){}
-  try{
-    const j = await getJSON('https://api.bybit.com/v5/market/tickers?category=spot&symbol=USDTRUB');
-    const it = j?.result?.list?.[0]; const p = it && parseFloat(it.lastPrice);
-    if(sane(p)) return { usdt:p, usdtPrev:parseFloat(it.prevPrice24h) || null, usdtSrc:'Bybit' };
-  }catch(e){}
-  try{
-    const j = await getJSON('https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=rub');
-    const p = j?.tether?.rub;
-    if(sane(p)) return { usdt:p, usdtPrev:null, usdtSrc:'CoinGecko' };
-  }catch(e){}
-  return null;
-}
+// USDT/RUB из браузера напрямую не получить (биржи запрещают такие запросы), его приносит rates.json.
+async function fetchUSDT(){ return null; }
 
 async function refresh(){
   if(loading) return;
   loading = true; paintStatus();
+  // 1) Курсы, которые GitHub собирает каждые ~10 минут: рыночный доллар и USDT с Rapira.
+  try{
+    const j = await getJSON('rates.json?t=' + Date.now());
+    if(sane(j.usd) && sane(j.usdt) && Date.now() - j.ts < 3*3600*1000){
+      R = { ...j, fetched: Date.now() }; failed = false; store.set('rates', R);
+      loading = false; next = Date.now() + INTERVAL*1000; paint(); return;
+    }
+  }catch(e){}
+  // 2) Запасной путь прямо из браузера.
   const [fx, cbr, t] = await Promise.allSettled([
     getJSON('https://open.er-api.com/v6/latest/USD'),
     getJSON('https://www.cbr-xml-daily.ru/daily_json.js'),
@@ -259,7 +251,7 @@ function paintStatus(){
   const dot = $('dot');
   dot.classList.toggle('bad', failed && !loading);
   if(!R) $('status').textContent = loading ? 'Загрузка…' : 'Нет связи';
-  else $('status').textContent = (failed && !loading ? 'Нет связи · курс на ' : 'Live · ') + hms(R.ts);
+  else $('status').textContent = (failed && !loading ? 'Нет связи · курс на ' : 'Live · курс на ') + hms(R.ts).slice(0,5);
   $('err').hidden = !(failed && !loading);
   $('err').textContent = R ? 'Курсы не обновились, показаны последние сохранённые.' : 'Нет связи с источниками курсов. Проверь интернет и нажми ↻.';
 }
