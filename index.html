@@ -56,7 +56,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
   font-family:var(--font);font-weight:200;font-size:48px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;caret-color:#fff}
 .amount input::placeholder{color:#55555C}
 .amount .glyph{font-size:30px;font-weight:200;color:var(--silver)}
-.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:rgba(0,0,0,.35);box-shadow:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.06)}
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;border-radius:16px;background:rgba(0,0,0,.35);box-shadow:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.06)}
 .seg button{height:46px;border-radius:12px;font-size:14px;font-weight:600;letter-spacing:.06em;color:var(--dim);transition:background .25s,color .25s,box-shadow .25s}
 .seg button[aria-pressed="true"]{color:#fff;background:linear-gradient(170deg,rgba(255,255,255,.34),rgba(255,255,255,.12));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 1px rgba(255,255,255,.12),inset 0 0 0 1px rgba(255,255,255,.18),0 4px 14px rgba(0,0,0,.5)}
@@ -66,7 +66,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
   background:rgba(255,255,255,.04);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),inset 0 0 0 1px rgba(255,255,255,.06);transition:transform .15s}
 .res:active{transform:scale(.985)}
 .res .left{display:flex;align-items:center;gap:12px;min-width:0}
-.orb{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;
+.orb{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;letter-spacing:-.02em;color:#fff;
   background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.35) 0%,rgba(255,255,255,.08) 45%,rgba(255,255,255,.03) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 4px rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.14),0 6px 14px rgba(0,0,0,.45)}
 .code{font-size:14px;font-weight:600;letter-spacing:.06em;color:#F4F4F5}
@@ -119,6 +119,7 @@ footer{margin-top:auto;display:flex;justify-content:space-between;gap:8px;paddin
       <button type="button" data-c="RUB">RUB</button>
       <button type="button" data-c="USD">USD</button>
       <button type="button" data-c="USDT">USDT</button>
+      <button type="button" data-c="AED">AED</button>
     </div>
   </section>
 
@@ -138,10 +139,12 @@ footer{margin-top:auto;display:flex;justify-content:space-between;gap:8px;paddin
 <script>
 const $ = id => document.getElementById(id);
 const INTERVAL = 60;
+const AED_PER_USD = 3.6725; // дирхам жёстко привязан к доллару
 const CUR = {
   RUB:  { glyph:'₽', name:'Российский рубль' },
   USD:  { glyph:'$', name:'Доллар США' },
-  USDT: { glyph:'₮', name:'Tether · USDT' }
+  USDT: { glyph:'₮', name:'Tether · USDT' },
+  AED:  { glyph:'Dh', name:'Дирхам ОАЭ' }
 };
 const store = {
   get(k){ try{ return JSON.parse(localStorage.getItem('kurs.'+k)); }catch(e){ return null; } },
@@ -201,16 +204,16 @@ async function refresh(){
   paint();
 }
 
-function rate(c){ if(!R) return null; return c==='RUB' ? 1 : c==='USD' ? R.usd : R.usdt; }
+function rate(c){ if(!R) return null; return c==='RUB' ? 1 : c==='USD' ? R.usd : c==='AED' ? R.usd/AED_PER_USD : R.usdt; }
 
 function paintResults(){
   const a = parse($('amt').value);
   const from = rate(src);
   const box = $('results'); box.innerHTML = '';
-  ['RUB','USD','USDT'].filter(c => c!==src).forEach(c => {
+  ['RUB','USD','USDT','AED'].filter(c => c!==src).forEach(c => {
     const to = rate(c);
     const v = (from && to) ? a*from/to : null;
-    const sub = !R ? ' ' : c==='RUB' ? '1 ₽ = '+fmt(1/R.usd,4)+' $' : c==='USD' ? '1 $ = '+fmt(R.usd)+' ₽' : '1 ₮ = '+fmt(R.usdt)+' ₽';
+    const sub = !R ? ' ' : c==='RUB' ? '1 ₽ = '+fmt(1/R.usd,4)+' $' : c==='USD' ? '1 $ = '+fmt(R.usd)+' ₽' : c==='AED' ? '1 Dh = '+fmt(R.usd/AED_PER_USD)+' ₽' : '1 ₮ = '+fmt(R.usdt)+' ₽';
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'res';
     b.setAttribute('aria-label', 'Скопировать сумму в '+c);
