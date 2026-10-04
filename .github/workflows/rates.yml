@@ -1,8 +1,12 @@
 name: Обновление курсов
 
+# GitHub запускает расписание с большими задержками (раз в 2–6 часов вместо заказанного),
+# поэтому каждый запуск сам работает несколько часов и обновляет курсы раз в 10 минут.
+# Одновременно идёт только один запуск; следующий ждёт в очереди и подхватывает эстафету.
+
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '7 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -18,19 +22,24 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node scripts/fetch-rates.mjs
-      - name: Сохранить rates.json
+      - name: Обновлять курсы раз в 10 минут
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rates.json
-          git diff --cached --quiet && exit 0
-          git commit -m "Курсы $(date -u +%H:%M)"
-          git pull --rebase -q origin main
-          git push
+          end=$(( $(date +%s) + 320*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            git pull -q --rebase origin main || true
+            node scripts/fetch-rates.mjs || true
+            git add rates.json
+            if ! git diff --cached --quiet; then
+              git commit -q -m "Курсы $(date -u +%H:%M)"
+              git push -q || { git pull -q --rebase origin main && git push -q; } || true
+            fi
+            sleep 600
+          done

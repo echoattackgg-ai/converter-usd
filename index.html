@@ -175,36 +175,36 @@ async function fetchUSDT(){ return null; }
 async function refresh(){
   if(loading) return;
   loading = true; paintStatus();
-  // 1) Курсы, которые GitHub собирает каждые ~10 минут: рыночный доллар и USDT с Rapira.
-  try{
-    const j = await getJSON('rates.json?t=' + Date.now());
-    if(sane(j.usd) && sane(j.usdt) && Date.now() - j.ts < 3*3600*1000){
-      R = { ...j, fetched: Date.now() }; failed = false; store.set('rates', R);
-      loading = false; next = Date.now() + INTERVAL*1000; paint(); return;
-    }
-  }catch(e){}
-  // 2) Запасной путь прямо из браузера.
-  const [fx, cbr, t] = await Promise.allSettled([
+  // Всё параллельно: rates.json (собирает GitHub: рыночный доллар + USDT с Rapira) и запасные источники доллара.
+  const [js, fx, cbr] = await Promise.allSettled([
+    getJSON('rates.json?t=' + Date.now()),
     getJSON('https://open.er-api.com/v6/latest/USD'),
-    getJSON('https://www.cbr-xml-daily.ru/daily_json.js'),
-    fetchUSDT()
+    getJSON('https://www.cbr-xml-daily.ru/daily_json.js')
   ]);
-  const n = { ...(R||{}), ts: Date.now() };
+  const n = { ...(R||{}) };
   let got = false;
-  if(fx.status==='fulfilled' && sane(fx.value?.rates?.RUB)){ n.usd = fx.value.rates.RUB; n.usdSrc = 'рынок'; got = true; }
+  // rates.json берём всегда, даже если он не самый свежий: время курса видно вверху.
+  if(js.status==='fulfilled' && sane(js.value?.usdt)){
+    const j = js.value;
+    if(!n.ts || j.ts >= n.ts) Object.assign(n, j);
+    got = true;
+  }
+  const jsonOld = !n.ts || Date.now() - n.ts > 3*3600*1000;
+  if(fx.status==='fulfilled' && sane(fx.value?.rates?.RUB) && (jsonOld || !sane(n.usd))){
+    n.usd = fx.value.rates.RUB; n.usdSrc = 'рынок'; got = true;
+  }
   if(cbr.status==='fulfilled' && sane(cbr.value?.Valute?.USD?.Value)){
     n.cbr = cbr.value.Valute.USD.Value; n.cbrPrev = cbr.value.Valute.USD.Previous; got = true;
     if(!sane(n.usd)){ n.usd = n.cbr; n.usdSrc = 'ЦБ'; }
   }
-  if(t.status==='fulfilled' && t.value){ Object.assign(n, t.value); got = true; }
   loading = false;
-  if(got && sane(n.usd) && sane(n.usdt)){ R = n; failed = false; store.set('rates', R); }
+  if(got && sane(n.usd)){ if(!n.ts) n.ts = Date.now(); R = n; failed = false; store.set('rates', R); }
   else failed = true;
   next = Date.now() + INTERVAL*1000;
   paint();
 }
 
-function rate(c){ if(!R) return null; return c==='RUB' ? 1 : c==='USD' ? R.usd : c==='AED' ? R.usd/AED_PER_USD : R.usdt; }
+function rate(c){ if(!R) return null; if(c==='USDT' && !sane(R.usdt)) return null; return c==='RUB' ? 1 : c==='USD' ? R.usd : c==='AED' ? R.usd/AED_PER_USD : R.usdt; }
 
 function paintResults(){
   const a = parse($('amt').value);
@@ -245,16 +245,20 @@ function paintRates(){
   $('rMarketD').textContent = R.usdSrc==='рынок' && R.cbr ? 'к ЦБ '+(R.usd>=R.cbr?'+':'')+fmt((R.usd/R.cbr-1)*100)+'%' : ' ';
   $('rCbr').textContent = R.cbr ? fmt(R.cbr) : '—';
   const c = change(R.cbr, R.cbrPrev); $('rCbrD').innerHTML = c.t; $('rCbrD').className = 'd '+c.cls;
-  $('rUsdt').textContent = fmt(R.usdt);
-  $('rUsdtD').textContent = R.usd ? 'к $ '+(R.usdt>=R.usd?'+':'')+fmt((R.usdt/R.usd-1)*100)+'%' : ' ';
-  $('sources').textContent = 'USD · '+R.usdSrc+'   USDT · '+R.usdtSrc;
+  $('rUsdt').textContent = sane(R.usdt) ? fmt(R.usdt) : '—';
+  $('rUsdtD').textContent = R.usd && sane(R.usdt) ? 'к $ '+(R.usdt>=R.usd?'+':'')+fmt((R.usdt/R.usd-1)*100)+'%' : ' ';
+  $('sources').textContent = 'USD · '+R.usdSrc+'   USDT · '+(R.usdtSrc||'—');
 }
 
 function paintStatus(){
   const dot = $('dot');
   dot.classList.toggle('bad', failed && !loading);
   if(!R) $('status').textContent = loading ? 'Загрузка…' : 'Нет связи';
-  else $('status').textContent = (failed && !loading ? 'Нет связи · курс на ' : 'Live · курс на ') + hms(R.ts).slice(0,5);
+  else {
+    const d = new Date(R.ts), today = new Date().toDateString() === d.toDateString();
+    const when = (today ? '' : pad(d.getDate())+'.'+pad(d.getMonth()+1)+' ') + hms(R.ts).slice(0,5);
+    $('status').textContent = (failed && !loading ? 'Нет связи · курс на ' : 'Live · курс на ') + when;
+  }
   $('err').hidden = !(failed && !loading);
   $('err').textContent = R ? 'Курсы не обновились, показаны последние сохранённые.' : 'Нет связи с источниками курсов. Проверь интернет и нажми ↻.';
 }
