@@ -2,7 +2,7 @@
  "cbr": 83.8675,
  "cbrPrev": 83.9153,
  "cbrDate": "2026-10-14T11:30:00+03:00",
- "usdt": 83,
+ "usdt": 82.95,
  "usdtPrev": null,
  "usdtSrc": "Bybit P2P",
  "usd": 83.733665,
@@ -10,7 +10,7 @@
  "usdLow": null,
  "usdHigh": null,
  "usdSrc": "рынок",
- "ts": 1791966487293,
+ "ts": 1791967089973,
  "parts": {
   "usd": true,
   "cbr": true,
