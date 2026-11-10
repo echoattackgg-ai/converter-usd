@@ -10,10 +10,10 @@
  "usdLow": null,
  "usdHigh": null,
  "usdSrc": "рынок",
- "ts": 1794285582747,
+ "ts": 1794286185412,
  "parts": {
   "usd": true,
   "cbr": true,
-  "usdt": false
+  "usdt": true
  }
 }
