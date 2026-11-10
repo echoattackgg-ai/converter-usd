@@ -5,15 +5,15 @@
  "usdt": 87.1,
  "usdtPrev": 86.69,
  "usdtSrc": "Rapira",
- "usd": 81.928764,
+ "usd": 82.241898,
  "usdPrev": null,
  "usdLow": null,
  "usdHigh": null,
  "usdSrc": "рынок",
- "ts": 1794263820048,
+ "ts": 1794274119649,
  "parts": {
   "usd": true,
   "cbr": true,
-  "usdt": true
+  "usdt": false
  }
 }
