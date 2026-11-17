@@ -2,7 +2,7 @@
  "cbr": 82.5143,
  "cbrPrev": 82.1516,
  "cbrDate": "2026-11-17T11:30:00+03:00",
- "usdt": 87.17,
+ "usdt": 87.11,
  "usdtPrev": 87.08,
  "usdtSrc": "Rapira",
  "usd": 82.518177,
@@ -10,7 +10,7 @@
  "usdLow": null,
  "usdHigh": null,
  "usdSrc": "рынок",
- "ts": 1794893144855,
+ "ts": 1794893747264,
  "parts": {
   "usd": true,
   "cbr": true,
